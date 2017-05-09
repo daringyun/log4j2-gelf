@@ -216,11 +216,20 @@ public class GelfAppender extends AbstractAppender {
                 + ",tlsCertVerificationEnabled=" + gelfConfiguration.isTlsCertVerificationEnabled()
                 + ",tlsTrustCertChainFilename=" + (gelfConfiguration.getTlsTrustCertChainFile() != null ?
                 gelfConfiguration.getTlsTrustCertChainFile().getPath() : "null")
+                + ",tlsClientCertVerificationEnabled=" + gelfConfiguration.isTlsClientCertVerificationEnabled()
+                + ",tlsKeyCertChainFile=" + (gelfConfiguration.getTlsKeyCertChainFile() != null ?
+                        gelfConfiguration.getTlsTrustCertChainFile().getPath() : "null")
+                + ",tlsKeyFile=" + (gelfConfiguration.getTlsKeyFile() != null ?
+                        gelfConfiguration.getTlsTrustCertChainFile().getPath() : "null")
+                + ",tlsKeyPassword=" + (gelfConfiguration.getTlsKeyPassword() != null && gelfConfiguration.getTlsKeyPassword().equals("")?
+                		 gelfConfiguration.getTlsKeyPassword() : "null")
                 + "}";
     }
-
+   
     /**
      * Factory method for creating a {@link GelfTransport} provider within the plugin manager.
+     * server verifycation cert file parameter @see org.graylog2.gelfclient.GelfConfiguration 
+     * @link <a href="https://github.com/daringyun/gelfclient/commit/1830af97be74ab42cdb7bfcbf8dca802e0535a91">daringyun/gelfclient forked from Graylog2/gelfclient</a>
      *
      * @param name                             The name of the Appender.
      * @param filter                           A Filter to determine if the event should be handled by this Appender.
@@ -237,6 +246,10 @@ public class GelfAppender extends AbstractAppender {
      * @param tlsEnabled                       Whether TLS should be enabled, defaults to {@code false}.
      * @param tlsEnableCertificateVerification Whether TLS certificate chain should be checked, defaults to {@code true}.
      * @param tlsTrustCertChainFilename        A X.509 certificate chain file in PEM format for certificate verification, defaults to {@code null}
+     * @param tlsClientEnableCertificateVerification Whether client TLS certificate chain should be checked, defaults to {@code false}.
+     * @param tlsKeyCertChainFile        	   X.509 certificate chain file in PEM format for the server certificate verification, defaults to {@code null}
+     * @param tlsKeyFile       				   the  PKCS#8 private key file in PEM format for the server certificate verification, defaults to {@code null}
+     * @param tlsKeyPassword        		   the password of the tlsKeyFile, defaults to {@code null}
      * @param queueSize                        The size of the internally used queue, defaults to {@code 512}.
      * @param connectTimeout                   The connection timeout for TCP connections in milliseconds, defaults to {@code 1000}.
      * @param reconnectDelay                   The time to wait between reconnects in milliseconds, defaults to {@code 500}.
@@ -251,7 +264,6 @@ public class GelfAppender extends AbstractAppender {
      * @return a new GELF provider
      */
     @PluginFactory
-    @SuppressWarnings("unused")
     public static GelfAppender createGelfAppender(@PluginElement("Filter") Filter filter,
                                                   @PluginElement("Layout") Layout<? extends Serializable> layout,
                                                   @PluginElement(value = "AdditionalFields") final KeyValuePair[] additionalFields,
@@ -273,7 +285,11 @@ public class GelfAppender extends AbstractAppender {
                                                   @PluginAttribute(value = "includeExceptionCause", defaultBoolean = false) Boolean includeExceptionCause,
                                                   @PluginAttribute(value = "tlsEnabled", defaultBoolean = false) Boolean tlsEnabled,
                                                   @PluginAttribute(value = "tlsEnableCertificateVerification", defaultBoolean = true) Boolean tlsEnableCertificateVerification,
-                                                  @PluginAttribute(value = "tlsTrustCertChainFilename") String tlsTrustCertChainFilename) {
+                                                  @PluginAttribute(value = "tlsTrustCertChainFilename") String tlsTrustCertChainFilename,
+                                                  @PluginAttribute(value = "tlsClientEnableCertificateVerification", defaultBoolean = false) Boolean tlsClientEnableCertificateVerification,
+                                                  @PluginAttribute(value = "tlsKeyCertChainFile") String tlsKeyCertChainFile,
+                                                  @PluginAttribute(value = "tlsKeyFile") String tlsKeyFile,
+                                                  @PluginAttribute(value = "tlsKeyPassword") String tlsKeyPassword) { 
         if (name == null) {
             LOGGER.error("No name provided for ConsoleAppender");
             return null;
@@ -314,6 +330,13 @@ public class GelfAppender extends AbstractAppender {
                 if (!tlsEnableCertificateVerification) {
                     LOG.warn("TLS certificate validation is disabled. This is unsecure!");
                     gelfConfiguration.disableTlsCertVerification();
+                }
+                if (tlsEnableCertificateVerification && tlsTrustCertChainFilename != null) {
+                    gelfConfiguration.tlsTrustCertChainFile(new File(tlsTrustCertChainFilename));
+                }
+                if (!tlsClientEnableCertificateVerification) {
+                    LOG.warn("client TLS certificate validation is disabled. This is unsecure!");
+                    gelfConfiguration.disableTlsClientCertVerification();
                 }
                 if (tlsEnableCertificateVerification && tlsTrustCertChainFilename != null) {
                     gelfConfiguration.tlsTrustCertChainFile(new File(tlsTrustCertChainFilename));
